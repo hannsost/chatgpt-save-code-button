@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         ChatGPT Save Code Button (Toolbar integration)
 // @namespace    de.osterbrink.chatgpt.savecode
-// @version      1.2.0
+// @version      1.2.1
 // @description  Adds a "Save" button next to "Copy" in ChatGPT code toolbars.
 // @author       stleo
 // @match        https://chat.openai.com/*
@@ -36,7 +36,7 @@
     btn.type = "button";
     btn.className = "gpt-save-btn flex gap-1 items-center select-none py-1 px-2";
     btn.setAttribute("aria-label", "Save");
-    btn.textContent = "ðŸ’¾ Save";
+    btn.textContent = "Save";
     Object.assign(btn.style, {
       fontSize: "12px",
       lineHeight: "1",
@@ -48,7 +48,6 @@
     });
     btn.addEventListener("mouseenter", () => (btn.style.filter = "brightness(0.98)"));
     btn.addEventListener("mouseleave", () => (btn.style.filter = ""));
-    btn.textContent = "💾 Save";
     return btn;
   }
 
@@ -180,3 +179,6 @@
     if (!document.hidden) scanOnce();
   }, 1500);
 })();
+
+
+
