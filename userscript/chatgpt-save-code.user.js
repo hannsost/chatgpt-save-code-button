@@ -1,7 +1,7 @@
 ﻿// ==UserScript==
 // @name         ChatGPT Save Code Button (Toolbar integration)
 // @namespace    de.osterbrink.chatgpt.savecode
-// @version      1.2.1
+// @version      1.2.2
 // @description  Adds a "Save" button next to "Copy" in ChatGPT code toolbars.
 // @author       stleo
 // @match        https://chat.openai.com/*
@@ -86,6 +86,70 @@
     return pre ? pre.parentElement || document : document;
   }
 
+  // New: find the nearest <pre> that belongs to this toolbar/copy button
+  function findNearestPreForCopyBtn(copyBtn) {
+    const toolbar = copyBtn.parentElement;
+    const findPreIn = (el) => {
+      if (!el) return null;
+      if (el.tagName === "PRE") return el;
+      return el.querySelector ? el.querySelector("pre") : null;
+    }
+  // Helper: get code text from a specific <pre> block
+  function getTextFromPre(preEl) {
+    if (!preEl) return '';
+    const codeEl = preEl.querySelector && preEl.querySelector('code');
+    if (codeEl) return codeEl.innerText || '';
+    return preEl.innerText || '';
+  }
+;
+    // Prefer next siblings — toolbar usually sits directly above the code block
+    let s = toolbar?.nextElementSibling || null;
+    for (let i = 0; i < 8 && s; i++) {
+      const pre = findPreIn(s);
+      if (pre) return pre;
+      s = s.nextElementSibling;
+    }
+    // Also check previous siblings as a fallback
+    s = toolbar?.previousElementSibling || null;
+    for (let i = 0; i < 4 && s; i++) {
+      const pre = findPreIn(s);
+      if (pre) return pre;
+      s = s.previousElementSibling;
+    }
+    // Ascend and search within the same parent, prioritizing nodes after the toolbar
+    let p = toolbar?.parentElement || copyBtn.parentElement;
+    for (let depth = 0; depth < 6 && p; depth++) {
+      const children = Array.from(p.children || []);
+      const idx = children.indexOf(toolbar || copyBtn);
+      if (idx >= 0) {
+        for (let i = idx + 1; i < children.length; i++) {
+          const pre = findPreIn(children[i]);
+          if (pre) return pre;
+        }
+        for (let i = idx - 1; i >= 0; i--) {
+          const pre = findPreIn(children[i]);
+          if (pre) return pre;
+        }
+      }
+      const anyPre = findPreIn(p);
+      if (anyPre) return anyPre;
+      p = p.parentElement;
+    }
+    return null;
+  }
+
+  // New: infer extension from a specific <pre> block
+  function guessExtFromPre(pre) {
+    const code = pre?.querySelector && pre.querySelector("code");
+    let key = "";
+    const cls = (code?.className || "").toLowerCase();
+    const m = cls.match(/(?:language|lang)-([a-z0-9+#]+)/);
+    if (m) key = m[1];
+    if (key === "c++") key = "cpp";
+    if (key === "c#") key = "csharp";
+    return EXT_MAP[key] || (key || "txt");
+  }
+
   function attachNextToCopyButton(copyBtn) {
     const toolbar = copyBtn.parentElement;
     if (toolbar && toolbar.querySelector('.gpt-save-btn')) return;
@@ -94,13 +158,13 @@
     const saveBtn = makeSaveButton();
     saveBtn.addEventListener("click", (ev) => {
       ev.stopPropagation();
-      const container = findCodeContainerFromCopyBtn(copyBtn);
-      const code = getCodeTextFromContainer(container);
+      const pre = findNearestPreForCopyBtn(copyBtn);
+      const code = pre ? getTextFromPre(pre) : getCodeTextFromContainer(findCodeContainerFromCopyBtn(copyBtn));
       if (!code.trim()) {
         alert("No code found.");
         return;
       }
-      const ext = guessExtFromContext(container);
+      const ext = pre ? guessExtFromPre(pre) : guessExtFromContext(findCodeContainerFromCopyBtn(copyBtn));
       const defaultName =
         ext === "Dockerfile"
           ? "Dockerfile"
@@ -179,6 +243,7 @@
     if (!document.hidden) scanOnce();
   }, 1500);
 })();
+
 
 
 
